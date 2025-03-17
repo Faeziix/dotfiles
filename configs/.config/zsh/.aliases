@@ -36,7 +36,6 @@ alias la='ls -alh --group-directories-first'
 # +----+
 # | cp |
 # +----+
-
 alias cp='cp -iv'
 alias mv='mv -iv'
 alias rm='rm -iv'
@@ -50,7 +49,7 @@ alias pacman="sudo pacman --color auto"
 alias sps='sudo pacman -S'               # install
 alias spql='sudo pacman -Ql'             # Pacman Has Installed - what files where installed in a package
 alias spss='sudo pacman -Ss'              # search
-alias spsyu='sudo pacman -Syu'             # update
+alias U='sudo pacman -Syu'             # update
 alias spr='sudo pacman -R'               # remove package but not dependencies
 alias spsrs='sudo pacman -Rs'             # remove package with unused dependencies by other softwares
 alias spsc='sudo pacman -Sc'             # remove pacman's cache
@@ -76,12 +75,6 @@ alias yayr='yay -R'     # remove package but not dependencies
 alias yayrr='yay -Rs'   # remove package with unused dependencies by other softwares
 alias yayrc='yay -Sc'   # remove yay's cache
 alias yayls="yay -Qe"
-
-# +------+
-# | yazi |
-# +------+
-
-alias lf='yazi'
 
 # +-----+
 # | Git |
@@ -148,3 +141,7 @@ download() {
 }
 
 alias download="download"
+
+alias centerify="sh ~/.scripts/magick/centerify.sh"
+
+
