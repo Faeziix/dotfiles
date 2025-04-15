@@ -14,7 +14,7 @@ xargs -I {} bash -c '
   # 1. Add a white border (to ensure trim works with edge-touching objects)
   # 2. Trim excess whitespace to get just the product
   # 3. Center the product on a white canvas of original dimensions
-  convert "{}" \
+  magick "{}" \
     -bordercolor white -border 1x1 \
     -trim +repage \
     -gravity center \
