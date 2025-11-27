@@ -121,6 +121,8 @@ alias nnvim="$EDITOR $XDG_CONFIG_HOME/nvim/"
 alias nkitty="$EDITOR $XDG_CONFIG_HOME/kitty/kitty.conf"
 alias nlf="$EDITOR $XDG_CONFIG_HOME/lf/lfrc"
 
+alias lf="yazi"
+
 # +-----------+
 # | Directory |
 # +-----------+
@@ -144,4 +146,4 @@ alias download="download"
 
 alias centerify="sh ~/.scripts/magick/centerify.sh"
 
-
+alias claude="/home/faezix/.claude/local/claude"

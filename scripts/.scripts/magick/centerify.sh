@@ -1,36 +1,55 @@
 #!/bin/bash
-# center-images.sh
+# centerify.sh
 # Purpose: Centers products in images while maintaining original dimensions
-# Usage: ls *.png | ./center-images.sh
-#   or: find . -name "*.png" | ./center-images.sh
+# Usage: 
+#   Standalone: ./centerify.sh image1.png image2.jpg
+#   With xargs: ls *.png | xargs ./centerify.sh
+#   With xargs parallel: ls *.jpg | xargs -P 4 ./centerify.sh
 
-# Process each image file piped into the script
-xargs -I {} bash -c '
-  # Get original dimensions
-  width=$(identify -format "%w" "{}")
-  height=$(identify -format "%h" "{}")
-  
-  # Process the image:
-  # 1. Add a white border (to ensure trim works with edge-touching objects)
-  # 2. Trim excess whitespace to get just the product
-  # 3. Center the product on a white canvas of original dimensions
-  magick "{}" \
-    -bordercolor white -border 1x1 \
-    -trim +repage \
-    -gravity center \
-    -background white \
-    -extent ${width}x${height} \
-    "centered_{}"
-  
-  echo "Processed: {} → centered_{}"
-' 
+process_image() {
+    local file="$1"
+    
+    # Check if file exists
+    if [[ ! -f "$file" ]]; then
+        echo "Error: File '$file' not found" >&2
+        return 1
+    fi
+    
+    # Get original dimensions
+    width=$(identify -format "%w" "$file" 2>/dev/null)
+    height=$(identify -format "%h" "$file" 2>/dev/null)
+    
+    # Check if identify command succeeded
+    if [[ -z "$width" || -z "$height" ]]; then
+        echo "Error: Could not get dimensions for '$file'" >&2
+        return 1
+    fi
+    
+    # Process the image
+    magick "$file" \
+        -trim +repage \
+        -background white \
+        -gravity center \
+        -extent "${width}x${height}" \
+        "centered_$file"
+    
+    if [[ $? -eq 0 ]]; then
+        echo "Processed: $file → centered_$file"
+    else
+        echo "Error: Failed to process '$file'" >&2
+        return 1
+    fi
+}
 
-# Add a usage example if no input is provided
-if [ -t 0 ]; then
-  echo "Usage: ls *.png | $0"
-  echo "   or: find . -name \"*.png\" | $0"
-  echo "   or: echo \"image1.png image2.png\" | xargs -n1 | $0"
+# Main logic
+if [[ $# -gt 0 ]]; then
+    # Standalone mode: process command line arguments
+    for file in "$@"; do
+        process_image "$file"
+    done
+else
+    # xargs mode: read from stdin
+    while IFS= read -r file; do
+        process_image "$file"
+    done
 fi
-
-# To use in parallel (uncomment the line below and comment the first xargs line):
-# xargs -P 4 -I {} bash -c '...'

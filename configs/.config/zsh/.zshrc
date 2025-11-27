@@ -52,7 +52,7 @@ alias history="history 0"
 # Bottom prompt function
 autoload -Uz add-zsh-hook
 function bottom_prompt {
-  tput cup $(($LINES-2)) 0
+  tput cup $(($LINES-1)) 0
 }
 add-zsh-hook precmd bottom_prompt
 
@@ -230,3 +230,8 @@ log_time() {
   fi
 }
 START_TIME=$(date +%s%N)
+
+export MANPAGER='nvim +Man!'
+
+
+export PATH="${ASDF_DATA_DIR:-$HOME/.asdf}/shims:$PATH"
