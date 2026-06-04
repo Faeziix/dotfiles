@@ -4,3 +4,4 @@ fzf-tab
 .secrets
 .zcompdump*
 zcompdump
+.zhistory
