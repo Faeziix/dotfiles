@@ -1,4 +1,6 @@
-# vim: filetype=sh
+# vim: ft=zsh
+# Aliases
+
 alias C="z /home/faezix/.cache" \
 	c='z $(find /home/faezix/.config -maxdepth 1 | fzf) ' \
 	dn="z /home/faezix/Downloads" \
@@ -22,6 +24,10 @@ alias suspend='sudo pm-suspend'
 alias ztr='zathura'
 alias cd="z"
 alias ka="killall"
+
+# bat as a nicer cat (keep raw cat available as `ccat`)
+alias cat='bat --paging=never'
+alias ccat='/usr/bin/cat'
 
 # +----+
 # | ls |
@@ -111,7 +117,8 @@ alias nconfgrub="sudo $EDITOR /boot/grub/grub.cfg"
 alias nsddm="sudo $EDITOR /etc/sddm.conf"
 alias nsddmk="sudo $EDITOR /etc/sddm.conf.d/kde_settings.conf"
 alias nz="$EDITOR $ZDOTDIR/.zshrc"
-alias nza="$EDITOR $ZDOTDIR/.aliases"
+alias nzc="$EDITOR $ZDOTDIR/conf.d"
+alias nza="$EDITOR $ZDOTDIR/conf.d/80-aliases.zsh"
 alias nenvironment="sudo $EDITOR /etc/environment"
 
 alias nwaybar="$EDITOR $XDG_CONFIG_HOME/waybar/config.ctl"
@@ -134,16 +141,12 @@ for index ({1..9}) alias "$index"="z +${index}"; unset index
 # | Misc |
 # +------+
 
-download() {
-    if [[ $1 =~ ^https?://(www\.)?(youtube\.com|youtu\.be)/ ]]; then
-        yt-dlp --format "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]" "$@"
-    else
-        gallery-dl -D . --cookies-from-browser firefox "$@"
-    fi
-}
-
-alias download="download"
-
 alias centerify="sh ~/.scripts/magick/centerify.sh"
 
-alias claude="/home/faezix/.claude/local/claude"
+alias oc="opencode"
+
+# +------+
+# | yarn |
+# +------+
+
+alias yd="yarn dev"

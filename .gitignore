@@ -1,3 +1,6 @@
 .zsh_history
 .uuid
 fzf-tab
+.secrets
+.zcompdump*
+zcompdump
