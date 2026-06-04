@@ -15,7 +15,7 @@ if [[ -f /usr/share/zsh/plugins/zsh-vi-mode/zsh-vi-mode.plugin.zsh ]]; then
         # atuin doesn't bind ^R in the vicmd keymap, so bind it after fzf to win in normal mode too
         zvm_after_init_commands+=('bindkey -M vicmd "^R" atuin-search-vicmd; bindkey -M viins "^R" atuin-search-viins')
     fi
-    command -v pay-respects >/dev/null && zvm_after_init_commands+=('eval "$(pay-respects zsh --alias f)"')
+    command -v pay-respects >/dev/null && zvm_after_init_commands+=('eval "$(pay-respects zsh --nocnf --alias f)"')
 else
     [ -f "$ZDOTDIR/lib/fzf.zsh" ] && source "$ZDOTDIR/lib/fzf.zsh"
     (( $+functions[enable-fzf-tab] )) && enable-fzf-tab
@@ -24,7 +24,7 @@ else
         bindkey -M vicmd "^R" atuin-search-vicmd
         bindkey -M viins "^R" atuin-search-viins
     fi
-    command -v pay-respects >/dev/null && eval "$(pay-respects zsh --alias f)"
+    command -v pay-respects >/dev/null && eval "$(pay-respects zsh --nocnf --alias f)"
 fi
 
 # Autosuggestions
