@@ -36,6 +36,9 @@ zcompdump              completion cache (gitignored)
 
 - `fzf-tab` — fzf-powered tab completion menu. Sourced from the system package
   (`/usr/share/zsh/plugins/fzf-tab/`) with a fallback to the vendored `fzf-tab/`.
+- `carapace` — multi-shell argument completions for 1000+ commands (sourced in `20-completion.zsh`
+  after `compinit`, before fzf-tab). `CARAPACE_BRIDGES='zsh'` falls back to native zsh completions
+  for unknown commands (bun, stripe). From the AUR (`carapace-bin`); the block no-ops if absent.
 - `atuin` — full-screen `Ctrl-R` history search (up-arrow left as plain history via `--disable-up-arrow`).
 - `pay-respects` — `f` re-runs a corrected version of the previous failed command.
 - `bd` — jump back to a named parent directory.

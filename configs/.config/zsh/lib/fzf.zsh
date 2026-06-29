@@ -15,7 +15,7 @@ source "/home/faezix/.config/fzf/shell/key-bindings.zsh"
 
 # Configurations
 # --------------
-export FZF_DEFAULT_COMMAND="fd --type f --hidden --follow --exclude={.git,.idea,.vscode,.sass-cache,node_modules,build,tmp,*venv,.bun,cache}"
+# export FZF_DEFAULT_COMMAND="fd --type f --hidden --follow --exclude={.git,.idea,.vscode,.sass-cache,node_modules,build,tmp,*venv,.bun,cache}"
 export FZF_CTRL_T_COMMAND="fd --hidden --follow --exclude={.git,.idea,.vscode,.sass-cache,node_modules,build,tmp,*venv,.bun,cache}"
 export FZF_ALT_C_COMMAND="fd --hidden --follow --exclude={.git,.idea,.vscode,.sass-cache,node_modules,build,tmp,*venv,.bun,cache} --type d"
 

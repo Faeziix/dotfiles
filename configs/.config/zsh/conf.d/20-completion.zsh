@@ -13,6 +13,33 @@ _comp_options+=(globdots)    # Include hidden files in completion
 # Extra completion search paths
 fpath=(~/.stripe $fpath)
 
+# carapace — multi-shell argument completions for 1000+ commands (docker, gh, bun,
+# systemctl, cargo, ...). Must source after compinit. The 'zsh' bridge makes carapace
+# fall back to native zsh completions for any command it doesn't know (bun, stripe, ...),
+# so this augments rather than replaces the existing setup. Loaded before fzf-tab so
+# fzf-tab wraps carapace's candidates with the usual previews.
+if command -v carapace >/dev/null; then
+    export CARAPACE_BRIDGES='zsh'
+    zstyle ':completion:*' format $'\e[2;37mCompleting %d\e[m'
+    source <(carapace _carapace zsh)
+
+    # carapace also hijacks plain file-argument commands (cat, cp, nvim, ls, ...),
+    # but its zsh bridge drops single-match completions (the generated completer
+    # guards with `${#valuesArr} -gt 1`), so descending into a folder with one
+    # match — or completing a lone sub-directory — inserts nothing. Hand those
+    # file/dir-centric commands back to zsh's native completion, which fzf-tab
+    # already wraps with folder descent + previews. carapace still enriches the
+    # commands that actually benefit (docker, gh, git, systemctl, cargo, ...).
+    carapace_native_file_cmds=(
+        ls lsd eza cat bat tac nl head tail less more wc
+        cp mv rm rmdir mkdir touch ln chmod chown chgrp stat file du
+        nvim vim vi view gvim nano micro code subl
+        tar zip unzip gzip gunzip xz zstd source realpath readlink
+    )
+    compdef -d $carapace_native_file_cmds 2>/dev/null
+    unset carapace_native_file_cmds
+fi
+
 setopt GLOB_COMPLETE        # Show the completion menu when globbing
 setopt MENU_COMPLETE        # Highlight the first menu entry automatically
 setopt AUTO_LIST            # List choices on ambiguous completion

@@ -16,3 +16,6 @@ done
 unset _zrc
 
 [[ -n $ZSH_PROFILE ]] && zprof
+
+# bun completions
+[ -s "/home/faezix/.bun/_bun" ] && source "/home/faezix/.bun/_bun"
