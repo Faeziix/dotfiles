@@ -1,0 +1,104 @@
+#!/usr/bin/env bash
+# Session picker for Alt+s: most recent first, Claude state, window icons,
+# live preview. Enter switches, ctrl-x kills, a new name + Enter creates.
+set -uo pipefail
+
+script_path=$(readlink -f "$0")
+script_dir=$(dirname "$script_path")
+
+theme_hex() { tmux show -gv "@thm_$1" 2>/dev/null; }
+
+ansi_fg() {
+  local hex=${1#\#}
+  printf '\033[38;2;%d;%d;%dm' "0x${hex:0:2}" "0x${hex:2:2}" "0x${hex:4:2}"
+}
+
+claude_marker() {
+  local states=" $1 "
+  local yellow=$2 red=$3 green=$4 reset=$'\033[0m'
+  if [[ $states == *" waiting "* ]]; then printf '%s%s' "$red" $''
+  elif [[ $states == *" done "* ]]; then printf '%s%s' "$green" $''
+  elif [[ $states == *" working "* ]]; then printf '%s%s' "$yellow" $'\U000f051f'
+  else printf ' '
+  fi
+  printf '%s' "$reset"
+}
+
+window_icons() {
+  local command icons=""
+  for command in $1; do
+    icons+="$("$script_dir/window-icon" "$command") "
+  done
+  printf '%s' "$icons"
+}
+
+list_sessions() {
+  local reset=$'\033[0m' bold=$'\033[1m'
+  local dim yellow red green
+  dim=$(ansi_fg "$(theme_hex overlay_1)")
+  yellow=$(ansi_fg "$(theme_hex yellow)")
+  red=$(ansi_fg "$(theme_hex red)")
+  green=$(ansi_fg "$(theme_hex green)")
+  local current_session_id
+  current_session_id=$(tmux show -gv @picker_origin_session 2>/dev/null)
+  [[ -n $current_session_id ]] || current_session_id=$(tmux display -p '#{session_id}')
+
+  local current_row=""
+  local field_separator=$'\x1f'
+  while IFS=$field_separator read -r _ session_id session_name commands states; do
+    local short_name=${session_name##*/}
+    [[ -n $short_name ]] || short_name=$session_name
+    local marker icons row
+    marker=$(claude_marker "$states" "$yellow" "$red" "$green")
+    icons=$(window_icons "$commands")
+    if [[ $session_id == "$current_session_id" ]]; then
+      row=$(printf '%s\t%s %s%-24.24s %s %s(here) %s%s' "$session_id" "$marker" "$dim" "$short_name" "$icons" "$dim" "$session_name" "$reset")
+      current_row=$row
+    else
+      row=$(printf '%s\t%s %s%-24.24s%s %s %s%s%s' "$session_id" "$marker" "$bold" "$short_name" "$reset" "$icons" "$dim" "$session_name" "$reset")
+      printf '%s\n' "$row"
+    fi
+  done < <(tmux list-sessions -F "#{session_last_attached}${field_separator}#{session_id}${field_separator}#{session_name}${field_separator}#{W:#{pane_current_command} }${field_separator}#{W:#{@claude_state} }" | sort -t "$field_separator" -k1,1nr)
+  [[ -n $current_row ]] && printf '%s\n' "$current_row"
+}
+
+kill_session() {
+  local session_id=$1 session_name answer
+  session_name=$(tmux display -p -t "$session_id" '#{session_name}' 2>/dev/null) || return 0
+  printf '\n  Kill session %s? [y/N] ' "$session_name"
+  read -rsn1 answer
+  [[ $answer == y || $answer == Y ]] && tmux kill-session -t "$session_id"
+}
+
+pick_session() {
+  local text surface_0 surface_1 overlay_1 mauve
+  text=$(theme_hex fg); surface_0=$(theme_hex surface_0); surface_1=$(theme_hex surface_1)
+  overlay_1=$(theme_hex overlay_1); mauve=$(theme_hex mauve)
+
+  local choice
+  choice=$(list_sessions | FZF_DEFAULT_OPTS="" fzf \
+    --ansi --delimiter=$'\t' --with-nth=2.. --no-sort --layout=reverse \
+    --prompt='  ' --pointer='▌' --marker='' --info=inline-right --no-scrollbar \
+    --header='enter switch · ctrl-x kill · new name + enter creates' \
+    --preview='tmux capture-pane -ep -t {1}' \
+    --preview-window='right,55%,border-left' \
+    --color="bg:-1,bg+:${surface_0},fg:${text},fg+:${text},hl:${mauve},hl+:${mauve}" \
+    --color="pointer:${mauve},prompt:${mauve},info:${overlay_1},header:${overlay_1}" \
+    --color="border:${surface_1},separator:${surface_1},preview-border:${surface_1},gutter:-1" \
+    --bind="ctrl-x:execute('$script_path' --kill {1})+reload('$script_path' --list)" \
+    --bind='enter:accept-or-print-query') || return 0
+
+  local first_field=${choice%%$'\t'*}
+  if [[ $choice == *$'\t'* && $first_field == \$* ]]; then
+    tmux switch-client -t "$first_field"
+  elif [[ -n $choice ]]; then
+    tmux has-session -t "=$choice" 2>/dev/null || tmux new-session -d -s "$choice" -c "$HOME"
+    tmux switch-client -t "=$choice"
+  fi
+}
+
+case ${1:-} in
+  --list) list_sessions ;;
+  --kill) kill_session "${2:-}" ;;
+  *) pick_session ;;
+esac
