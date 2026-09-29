@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Session picker for Alt+s: most recent first, Claude state, window icons,
+# Session picker for Alt+s: most recent first, pane icons (Claude icons are coloured by state),
 # live preview. Enter switches, ctrl-x kills, a new name + Enter creates.
 set -uo pipefail
 
@@ -13,23 +13,45 @@ ansi_fg() {
   printf '\033[38;2;%d;%d;%dm' "0x${hex:0:2}" "0x${hex:2:2}" "0x${hex:4:2}"
 }
 
-claude_marker() {
-  local states=" $1 "
-  local yellow=$2 red=$3 green=$4 reset=$'\033[0m'
-  if [[ $states == *" waiting "* ]]; then printf '%s%s' "$red" $''
-  elif [[ $states == *" done "* ]]; then printf '%s%s' "$green" $''
-  elif [[ $states == *" working "* ]]; then printf '%s%s' "$yellow" $'\U000f051f'
-  else printf ' '
-  fi
-  printf '%s' "$reset"
-}
-
-window_icons() {
-  local command icons=""
-  for command in $1; do
-    icons+="$("$script_dir/window-icon" "$command") "
+pane_icons() {
+  local panes=$1 dim=$2 yellow=$3 red=$4 green=$5 reset=$'\033[0m'
+  local pane command state key colour
+  local -A pane_counts=()
+  local -a keys_in_order=()
+  for pane in $panes; do
+    command=${pane%%|*}
+    state=${pane#*|}
+    [[ $command == claude ]] || state=""
+    key="$command|$state"
+    [[ -n ${pane_counts[$key]:-} ]] || keys_in_order+=("$key")
+    pane_counts[$key]=$(( ${pane_counts[$key]:-0} + 1 ))
   done
-  printf '%s' "$icons"
+
+  local -a state_order=(waiting working done "")
+  local ordered_key wanted_state
+  local -a sorted_keys=()
+  for wanted_state in "${state_order[@]}"; do
+    for key in "${keys_in_order[@]}"; do
+      [[ ${key%%|*} == claude && ${key#*|} == "$wanted_state" ]] && sorted_keys+=("$key")
+    done
+  done
+  for key in "${keys_in_order[@]}"; do
+    [[ ${key%%|*} == claude ]] || sorted_keys+=("$key")
+  done
+
+  for ordered_key in "${sorted_keys[@]}"; do
+    command=${ordered_key%%|*}
+    state=${ordered_key#*|}
+    case $state in
+      waiting) colour=$red ;;
+      working) colour=$yellow ;;
+      done) colour=$green ;;
+      *) colour=$dim ;;
+    esac
+    printf '%s%s' "$colour" "$("$script_dir/window-icon" "$command")"
+    (( pane_counts[$ordered_key] > 1 )) && printf '%s' "${pane_counts[$ordered_key]}"
+    printf '%s ' "$reset"
+  done
 }
 
 list_sessions() {
@@ -45,20 +67,19 @@ list_sessions() {
 
   local current_row=""
   local field_separator=$'\x1f'
-  while IFS=$field_separator read -r _ session_id session_name commands states; do
+  while IFS=$field_separator read -r _ session_id session_name panes; do
     local short_name=${session_name##*/}
     [[ -n $short_name ]] || short_name=$session_name
-    local marker icons row
-    marker=$(claude_marker "$states" "$yellow" "$red" "$green")
-    icons=$(window_icons "$commands")
+    local icons row
+    icons=$(pane_icons "$panes" "$dim" "$yellow" "$red" "$green")
     if [[ $session_id == "$current_session_id" ]]; then
-      row=$(printf '%s\t%s %s%-24.24s %s %s(here) %s%s' "$session_id" "$marker" "$dim" "$short_name" "$icons" "$dim" "$session_name" "$reset")
+      row=$(printf '%s\t%s%-24.24s %s %s(here) %s%s' "$session_id" "$dim" "$short_name" "$icons" "$dim" "$session_name" "$reset")
       current_row=$row
     else
-      row=$(printf '%s\t%s %s%-24.24s%s %s %s%s%s' "$session_id" "$marker" "$bold" "$short_name" "$reset" "$icons" "$dim" "$session_name" "$reset")
+      row=$(printf '%s\t%s%-24.24s%s %s %s%s%s' "$session_id" "$bold" "$short_name" "$reset" "$icons" "$dim" "$session_name" "$reset")
       printf '%s\n' "$row"
     fi
-  done < <(tmux list-sessions -F "#{session_last_attached}${field_separator}#{session_id}${field_separator}#{session_name}${field_separator}#{W:#{pane_current_command} }${field_separator}#{W:#{@claude_state} }" | sort -t "$field_separator" -k1,1nr)
+  done < <(tmux list-sessions -F "#{session_last_attached}${field_separator}#{session_id}${field_separator}#{session_name}${field_separator}#{W:#{P:#{pane_current_command}|#{@claude_state} }}" | sort -t "$field_separator" -k1,1nr)
   [[ -n $current_row ]] && printf '%s\n' "$current_row"
 }
 

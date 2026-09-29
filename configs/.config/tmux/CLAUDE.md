@@ -8,10 +8,10 @@
 
 ## Architecture Decisions
 - File layout: `tmux.conf` (options, keys, plugins) → `theme.conf` (catppuccin options, sourced BEFORE tpm because the plugin only sets unset options) → tpm `run` → `status.conf` (status bar, sourced AFTER tpm so it overrides catppuccin and can use `@thm_*`). Custom status modules live one per file in `modules/`; shell helpers in `scripts/`.
-- Status bar: left = COPY / SYNC / ZOOM·N panes badges; right = Alt+Tab target (last session), git branch (hidden outside repos), session +N other sessions. Window tabs use catppuccin icon flags (bell, activity, zoom). No clock/battery/CPU: the niri DMS bar shows those.
+- Status bar: left = COPY / SYNC badges (zoom is shown inside the window tab, never as a separate badge: peach zoom icon + pane count in `@window_label`; the catppuccin zoom flag is dropped from `@catppuccin_window_flags_icon_format` to avoid a duplicate icon); right = Alt+Tab target (last session), git branch (hidden outside repos), session +N other sessions. Window tabs use catppuccin icon flags (bell, activity, zoom). No clock/battery/CPU: the niri DMS bar shows those.
 - Tabs: `@window_label` (status.conf) = program icon (`scripts/window-icon`, falls back to the program name) + folder basename + pane count when split + `@claude_marker`. Used by catppuccin window text and the Alt+s session list (`choose-tree -F`).
-- Claude Code state per window: `~/.claude/hooks/tmux-claude-state.sh` sets window option `@claude_state` (UserPromptSubmit/PostToolUse → working, Notification → waiting, Stop → done unless the window is visible, SessionEnd → clear). `session-window-changed[10]` / `client-session-changed[10]` hooks clear `done` on visit.
-- Alt+s = `scripts/session-picker` (fzf in a rounded popup): most recent first, current last as "(here)", Claude marker, window icons, live preview; Enter switch, ctrl-x kill (y/N), unknown name + Enter creates. The binding stores `#{session_id}` in `@picker_origin_session` first.
+- Claude Code state per PANE (several Claude sessions can share a window/session): `~/.claude/hooks/tmux-claude-state.sh` sets pane option `@claude_state` (UserPromptSubmit/PostToolUse → working, Notification → waiting, Stop → done unless the window is visible, SessionEnd → clear). Tabs (`@claude_marker`) show a count per state (state icon, plus the number when >1); the Alt+s picker shows coloured Claude icons instead. Counts come from `#{n:#{P:…}}` formats (`@claude_*_count`). `session-window-changed[10]` / `client-session-changed[10]` run `scripts/claude-clear-done` to acknowledge done panes in the visited window. monitor-activity stays off on a window until its last Claude pane ends.
+- Alt+s = `scripts/session-picker` (fzf in a rounded popup): most recent first, current last as "(here)", Claude marker, window icons, live preview; one icon per distinct pane program with a count when >1 (never three copies); Claude panes use the Claude icon itself as the state marker, coloured red waiting / yellow working / green done / dim idle, each with its own count, Enter switch, ctrl-x kill (y/N), unknown name + Enter creates. The binding stores `#{session_id}` in `@picker_origin_session` first.
 - Colours: always `#{@thm_*}` tokens from catppuccin, never hex, in status formats.
 - `status-right` must keep `#(…/tmux-continuum/scripts/continuum_save.sh)` or continuum autosave stops.
 - Prefix is `Alt+Space` (`M-Space`).
@@ -49,6 +49,12 @@
 - ❌ Detecting the current session inside a popup with `tmux display` or `$TMUX_PANE` → wrong session; popup commands and `-e` aren't format-expanded. ✅ Binding runs `set -gF @picker_origin_session "#{session_id}"` before `display-popup`.
 
 - ❌ `switch-client -l` / `#{client_last_session}` for Alt+Tab → single pointer, dead after that session is killed. ✅ MRU queue in `scripts/session-history`.
+
+- ❌ Storing `@claude_state` as a window option → two Claude panes in one window overwrite each other, and pane-level reads fall through to a stale window value. ✅ Pane option, and unset any leftover window-level `@claude_state` after migrating.
+
+- ❌ `[[ cond ]] && cmd` as the last line of a hook script → exits 1 when cond is false and tmux shows "returned 1" in a message. ✅ Use `if … then … fi` (or end with `exit 0`) in scripts run by `run-shell`.
+
+- Claude icon: Nerd Fonts has no Claude logo, so `scripts/build-claude-glyph` generates a one-glyph font (`U+F6000`) from the real logo outline in `assets/claude-logo.svg` (simple-icons, CC0) into `~/.dotfiles/fonts/.local/share/fonts/claude-glyph/` and links it into `~/.local/share/fonts`. `scripts/window-icon` prints it for `claude`. Rerun the script on a new machine. Kitty must map it explicitly: `symbol_map U+F6000 Claude Glyph` in `~/.config/kitty/kitty.conf` (fontconfig fallback alone rendered a box). Reload kitty with ctrl+shift+f5, or restart it, after changing fonts.
 
 ## Dependencies & Tooling
 - Plugins: tpm, tmux-sensible, catppuccin/tmux v2.3.1 (official, pinned tag; replaced dreamsofcode-io/catppuccin-tmux 2026-09-29), tmux-continuum, tmux-yank (wl-copy), vim-tmux-navigator, tmux-thumbs (`prefix F`), extrakto (`prefix Tab`).
