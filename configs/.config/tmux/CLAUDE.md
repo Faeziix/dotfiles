@@ -11,11 +11,12 @@
 - Status bar: left = COPY / SYNC / ZOOM·N panes badges; right = Alt+Tab target (last session), git branch (hidden outside repos), session +N other sessions. Window tabs use catppuccin icon flags (bell, activity, zoom). No clock/battery/CPU: the niri DMS bar shows those.
 - Tabs: `@window_label` (status.conf) = program icon (`scripts/window-icon`, falls back to the program name) + folder basename + pane count when split + `@claude_marker`. Used by catppuccin window text and the Alt+s session list (`choose-tree -F`).
 - Claude Code state per window: `~/.claude/hooks/tmux-claude-state.sh` sets window option `@claude_state` (UserPromptSubmit/PostToolUse → working, Notification → waiting, Stop → done unless the window is visible, SessionEnd → clear). `session-window-changed[10]` / `client-session-changed[10]` hooks clear `done` on visit.
+- Alt+s = `scripts/session-picker` (fzf in a rounded popup): most recent first, current last as "(here)", Claude marker, window icons, live preview; Enter switch, ctrl-x kill (y/N), unknown name + Enter creates. The binding stores `#{session_id}` in `@picker_origin_session` first.
 - Colours: always `#{@thm_*}` tokens from catppuccin, never hex, in status formats.
 - `status-right` must keep `#(…/tmux-continuum/scripts/continuum_save.sh)` or continuum autosave stops.
 - Prefix is `Alt+Space` (`M-Space`).
 - Two-layer keymap direction: `Alt+key` (root table, no prefix) for frequent actions; prefix + mnemonic key for the rest.
-- `Alt+Tab` = `switch-client -l` (jump back to the previous session). niri's `Alt+Tab` / `Alt+Shift+Tab` were removed from `~/.config/niri/config.kdl` `recent-windows { binds {} }` so the key reaches tmux.
+- `Alt+Tab` = `scripts/session-history previous`: an MRU queue of session ids in the global option `@session_history`, pushed by `client-session-changed[20]`, pruned by `session-closed[20]`. Alt+Tab jumps to the newest surviving session that isn't the current one, so killing a session falls through to the next one. The status bar target is `@previous_session_name` (not `client_last_session`, which goes stale when that session dies). niri's `Alt+Tab` / `Alt+Shift+Tab` were removed from `~/.config/niri/config.kdl` `recent-windows { binds {} }` so the key reaches tmux.
 
 ## Preferences & Rules
 - Harpoon is not used; don't reintroduce it or plan around it.
@@ -42,6 +43,12 @@
 - ❌ Verifying `#()` job output with `tmux display -p` → always empty (display doesn't wait for jobs). ✅ Attach a pty client to a `-L` test server and read the drawn status line.
 - ❌ catppuccin `rounded` window style with a transparent bar → tab corners render as opaque dark squares in kitty (the style draws separators with `reverse`, and kitty only makes default-bg cells transparent). ✅ `custom` window style with `#[fg=<pill colour>,bg=default]` round glyphs in `theme.conf`.
 - ❌ Switching themes and only reloading → old theme's `status-bg` / `window-status-style` stay set in the live server, so the bar stays opaque. ✅ `status.conf` explicitly sets `status-style` from `@thm_bg` and resets `window-status-style` / `window-status-current-style` / `popup-style`. `status-bg` overrides `status-style` when not `default`, so never set it.
+- ❌ tmux activity alerts on Claude Code windows → always on (its TUI redraws constantly). ✅ Hook script sets `monitor-activity off` per Claude window (SessionStart and every state, unset on SessionEnd), and the tab's new-output icon (`@catppuccin_window_flags_icon_format` in theme.conf) also requires `monitor-activity` on and `pane_current_command != claude`. tmux still sets `window_activity_flag` with monitoring off, so the format check is required.
+- ❌ Mapping every Claude `Notification` to waiting → the `idle_prompt` nudge (~60 s after Stop) overwrote done with the question mark. ✅ Notification hook has matcher `permission_prompt|elicitation_dialog`, and the script also ignores other `notification_type`s.
+- ❌ Reading `tmux list-sessions` with `IFS=$'\t'` → empty fields (never-attached sessions) collapse and columns shift. ✅ Use `\x1f` as the separator.
+- ❌ Detecting the current session inside a popup with `tmux display` or `$TMUX_PANE` → wrong session; popup commands and `-e` aren't format-expanded. ✅ Binding runs `set -gF @picker_origin_session "#{session_id}"` before `display-popup`.
+
+- ❌ `switch-client -l` / `#{client_last_session}` for Alt+Tab → single pointer, dead after that session is killed. ✅ MRU queue in `scripts/session-history`.
 
 ## Dependencies & Tooling
 - Plugins: tpm, tmux-sensible, catppuccin/tmux v2.3.1 (official, pinned tag; replaced dreamsofcode-io/catppuccin-tmux 2026-09-29), tmux-continuum, tmux-yank (wl-copy), vim-tmux-navigator, tmux-thumbs (`prefix F`), extrakto (`prefix Tab`).
