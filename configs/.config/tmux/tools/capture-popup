@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+# Screenshots a popup as kitty really draws it: opens a throwaway kitty window attached to a
+# throwaway tmux server (theme options copied from the live server), runs COMMAND in a popup,
+# and saves a PNG after each delay. Pane icons/annotations still read the live server.
+# Usage: tools/capture-popup OUT_DIR "COMMAND" DELAY_SECONDS...
+set -u
+out_dir=$1 popup_command=$2; shift 2
+server=capture-popup-$$
+test_tmux() { tmux -L "$server" "$@"; }
+live_socket=$(tmux display -p '#{socket_path}')
+
+clipboard_backup=$(mktemp)
+wl-paste --no-newline > "$clipboard_backup" 2>/dev/null
+restore_and_clean() {
+  test_tmux kill-server 2>/dev/null
+  [[ -n ${window_id:-} ]] && niri msg action close-window --id "$window_id" 2>/dev/null
+  wl-copy < "$clipboard_backup"; rm -f "$clipboard_backup"
+}
+trap restore_and_clean EXIT
+
+test_tmux -f /dev/null new-session -d -s main -x 200 -y 50
+tmux show -g | grep '^@thm_' | while read -r option value; do test_tmux set -g "$option" "${value//\"/}"; done
+test_tmux send-keys -t main 'while :; do printf "\r busy %s " $RANDOM; sleep 0.1; done' Enter
+
+kitty --detach --class "$server" tmux -L "$server" attach -t main
+sleep 1.5
+window_id=$(niri msg -j windows | jq --arg app "$server" '.[] | select(.app_id==$app) | .id' | head -1)
+client=$(test_tmux list-clients -F '#{client_name}' | head -1)
+test_tmux display-popup -c "$client" -E -b rounded -w 70% -h 70% -d ~/.config/tmux \
+  -e "TMUX_LIVE_SOCKET=$live_socket" "$popup_command" &
+
+screenshot_dir=$(eval echo "$(sed -n 's/^screenshot-path "\(.*\)\/[^/]*"$/\1/p' ~/.config/niri/config.kdl)")
+elapsed=0
+for delay in "$@"; do
+  sleep $(( delay - elapsed )); elapsed=$delay
+  newest_before=$(ls -t "$screenshot_dir" | head -1)
+  niri msg action screenshot-window --id "$window_id" --write-to-disk true
+  sleep 0.5
+  newest=$(ls -t "$screenshot_dir" | head -1)
+  if [[ $newest != "$newest_before" ]]; then
+    mv "$screenshot_dir/$newest" "$out_dir/popup-${delay}s.png"
+    echo "$out_dir/popup-${delay}s.png"
+  fi
+done

@@ -6,15 +6,13 @@ set -uo pipefail
 script_path=$(readlink -f "$0")
 script_dir=$(dirname "$script_path")
 
-theme_hex() { tmux show -gv "@thm_$1" 2>/dev/null; }
-
-ansi_fg() {
-  local hex=${1#\#}
-  printf '\033[38;2;%d;%d;%dm' "0x${hex:0:2}" "0x${hex:2:2}" "0x${hex:4:2}"
-}
+source "$script_dir/fzf-style.sh"
 
 pane_icons() {
   local panes=$1 dim=$2 yellow=$3 red=$4 green=$5 reset=$'\033[0m'
+  # kitty draws a Nerd Font icon full size (two cells) only when a space follows it;
+  # an en space survives fzf and tmux, which can drop trailing plain spaces.
+  local icon_spacer=$'\u2002'
   local pane command state key colour
   local -A pane_counts=()
   local -a keys_in_order=()
@@ -48,7 +46,7 @@ pane_icons() {
       done) colour=$green ;;
       *) colour=$dim ;;
     esac
-    printf '%s%s' "$colour" "$("$script_dir/window-icon" "$command")"
+    printf '%s%s%s' "$colour" "$("$script_dir/window-icon" "$command")" "$icon_spacer"
     (( pane_counts[$ordered_key] > 1 )) && printf '%s' "${pane_counts[$ordered_key]}"
     printf '%s ' "$reset"
   done
@@ -83,6 +81,25 @@ list_sessions() {
   [[ -n $current_row ]] && printf '%s\n' "$current_row"
 }
 
+print_session_annotations() {
+  local dim yellow red green
+  dim=$(ansi_fg "$(theme_hex overlay_1)")
+  yellow=$(ansi_fg "$(theme_hex yellow)")
+  red=$(ansi_fg "$(theme_hex red)")
+  green=$(ansi_fg "$(theme_hex green)")
+  local current_session_id reset=$'\033[0m'
+  current_session_id=$(tmux show -gv @picker_origin_session 2>/dev/null)
+  # fzf trims trailing whitespace (the en space after the last icon) and tmux later
+  # erases the padding, which shrinks that icon; a blank braille cell is not whitespace.
+  local line_end_guard=$'\u2800'
+  local field_separator=$'\x1f' session_id session_name panes here_label
+  while IFS=$field_separator read -r session_id session_name panes; do
+    here_label=""
+    [[ $session_id == "$current_session_id" ]] && here_label="${dim}(here)${reset}"
+    printf '%s\t%s%s%s\n' "$session_name" "$(pane_icons "$panes" "$dim" "$yellow" "$red" "$green")" "$here_label" "$line_end_guard"
+  done < <(tmux list-sessions -F "#{session_id}${field_separator}#{session_name}${field_separator}#{W:#{P:#{pane_current_command}|#{@claude_state} }}")
+}
+
 kill_session() {
   local session_id=$1 session_name answer
   session_name=$(tmux display -p -t "$session_id" '#{session_name}' 2>/dev/null) || return 0
@@ -92,20 +109,13 @@ kill_session() {
 }
 
 pick_session() {
-  local text surface_0 surface_1 overlay_1 mauve
-  text=$(theme_hex fg); surface_0=$(theme_hex surface_0); surface_1=$(theme_hex surface_1)
-  overlay_1=$(theme_hex overlay_1); mauve=$(theme_hex mauve)
+  build_fzf_style
 
   local choice
-  choice=$(list_sessions | FZF_DEFAULT_OPTS="" fzf \
-    --ansi --delimiter=$'\t' --with-nth=2.. --no-sort --layout=reverse \
-    --prompt='  ' --pointer='▌' --marker='' --info=inline-right --no-scrollbar \
+  choice=$(list_sessions | FZF_DEFAULT_OPTS="" fzf "${FZF_STYLE[@]}" \
+    --ansi --delimiter=$'\t' --with-nth=2.. --no-sort \
     --header='enter switch · ctrl-x kill · new name + enter creates' \
     --preview='tmux capture-pane -ep -t {1}' \
-    --preview-window='right,55%,border-left' \
-    --color="bg:-1,bg+:${surface_0},fg:${text},fg+:${text},hl:${mauve},hl+:${mauve}" \
-    --color="pointer:${mauve},prompt:${mauve},info:${overlay_1},header:${overlay_1}" \
-    --color="border:${surface_1},separator:${surface_1},preview-border:${surface_1},gutter:-1" \
     --bind="ctrl-x:execute('$script_path' --kill {1})+reload('$script_path' --list)" \
     --bind='enter:accept-or-print-query') || return 0
 
@@ -120,6 +130,7 @@ pick_session() {
 
 case ${1:-} in
   --list) list_sessions ;;
+  --annotations) print_session_annotations ;;
   --kill) kill_session "${2:-}" ;;
   *) pick_session ;;
 esac

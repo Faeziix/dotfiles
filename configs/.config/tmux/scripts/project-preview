@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# Alt+f preview: the live pane of the project's tmux session when one is open,
+# otherwise the git branch/status and a shallow folder tree.
+set -uo pipefail
+
+script_dir=$(dirname "$(readlink -f "$0")")
+source "$script_dir/fzf-style.sh"
+
+shortened_path=${1%$'\t'}
+project_path=${shortened_path/#\~/$HOME}
+tmux_session_name=${shortened_path//./_}
+
+ansi_colour() {
+  local hex
+  hex=$(theme_hex "$1"); hex=${hex#\#}
+  printf '\033[38;2;%d;%d;%dm' "0x${hex:0:2}" "0x${hex:2:2}" "0x${hex:4:2}"
+}
+
+session_id_for_name() {
+  local field_separator=$'\x1f' name id
+  while IFS=$field_separator read -r name id; do
+    [[ $name == "$1" ]] && printf '%s' "$id" && return
+  done < <(tmux list-sessions -F "#{session_name}${field_separator}#{session_id}" 2>/dev/null)
+}
+
+print_git_summary() {
+  git -C "$project_path" rev-parse --is-inside-work-tree >/dev/null 2>&1 || return 0
+  local reset=$'\033[0m' branch changed_files
+  branch=$(git -C "$project_path" branch --show-current 2>/dev/null)
+  changed_files=$(git -C "$project_path" status --porcelain 2>/dev/null | wc -l)
+  printf '%s %s%s' "$(ansi_colour mauve)" "${branch:-detached}" "$reset"
+  if (( changed_files > 0 )); then
+    printf '  %s● %d changed%s' "$(ansi_colour yellow)" "$changed_files" "$reset"
+  else
+    printf '  %s✓ clean%s' "$(ansi_colour green)" "$reset"
+  fi
+  printf '\n\n'
+}
+
+print_folder_tree() {
+  lsd --tree --depth 2 --blocks name --header=false --color=always --icon=always \
+    --ignore-glob node_modules --ignore-glob .git "$project_path" 2>/dev/null \
+    || ls -1 "$project_path"
+}
+
+session_id=$(session_id_for_name "$tmux_session_name")
+if [[ -n $session_id ]]; then
+  tmux capture-pane -ep -t "$session_id"
+else
+  print_git_summary
+  print_folder_tree
+fi

@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# Alt+f: tmux-leap (patched fork, ~/Work/projects/tmux-leap branch "annotated")
+# restyled to match the session picker. The look comes in through FZF_DEFAULT_OPTS;
+# per-session pane icons come from TMUX_LEAP_ANNOTATE; ctrl-o opens the project with
+# the command in TMUX_LEAP_LAUNCH typed into a fresh pane.
+set -uo pipefail
+
+script_dir=$(dirname "$(readlink -f "$0")")
+source "$script_dir/fzf-style.sh"
+
+patched_tmux_leap="${CARGO_HOME:-$HOME/.local/share/cargo}/bin/tmux-leap"
+[[ -x $patched_tmux_leap ]] || patched_tmux_leap=tmux-leap
+build_fzf_style
+
+list_width_percent=50
+icon_room=20
+popup_width=$(tput cols 2>/dev/null || echo 120)
+longest_path_width=$(( popup_width * list_width_percent / 100 - icon_room ))
+
+FZF_STYLE+=(
+  --scheme=path --tiebreak=begin,length
+  --header='enter open · ^o claude · tab mark · ^x kill · ^t open only'
+  --marker='󰄬' --color="marker:$(theme_hex mauve)"
+  --preview="'$script_dir/project-preview' {1}"
+  --preview-window="right,$(( 100 - list_width_percent ))%,border-left"
+)
+
+TMUX_LEAP_ANNOTATE="'$script_dir/session-picker' --annotations" TMUX_LEAP_PATH_WIDTH=$longest_path_width \
+  TMUX_LEAP_LAUNCH='claude --dangerously-skip-permissions' \
+  FZF_DEFAULT_OPTS=$(printf '%q ' "${FZF_STYLE[@]}") exec "$patched_tmux_leap" "$@"
