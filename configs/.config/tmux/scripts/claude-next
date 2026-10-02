@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# Alt+a: jump to the next Claude that needs you, across all sessions. Waiting panes
+# (permission prompt or question) come first, longest wait first; then finished ones.
+# Pressing again moves on to the next one and wraps around.
+# Usage: claude-next CURRENT_PANE_ID CLIENT_NAME
+set -uo pipefail
+
+current_pane=$1
+client_name=$2
+script_dir=$(dirname "$(readlink -f "$0")")
+field_separator=$'\x1f'
+
+panes_needing_attention() {
+  tmux list-panes -a -F "#{@claude_state}${field_separator}#{@claude_state_since}${field_separator}#{pane_id}" |
+    awk -F "$field_separator" '
+      $1 == "waiting" { print 0, ($2 == "" ? 0 : $2), $3 }
+      $1 == "done"    { print 1, ($2 == "" ? 0 : $2), $3 }' |
+    sort -k1,1n -k2,2n | cut -d' ' -f3
+}
+
+mapfile -t queue < <(panes_needing_attention)
+if (( ${#queue[@]} == 0 )); then
+  tmux display-message -c "$client_name" "No Claude is waiting or finished"
+  exit 0
+fi
+
+target=${queue[0]}
+for index in "${!queue[@]}"; do
+  if [[ ${queue[$index]} == "$current_pane" ]]; then
+    target=${queue[$(( (index + 1) % ${#queue[@]} ))]}
+    break
+  fi
+done
+
+"$script_dir/claude-focus-pane" "$target" "$client_name"
