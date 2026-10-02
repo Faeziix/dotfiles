@@ -23,7 +23,7 @@ human_age() {
 }
 
 claude_panes_by_urgency() {
-  tmux list-panes -a -F "#{pane_current_command}${field_separator}#{@claude_state}${field_separator}#{@claude_state_since}${field_separator}#{pane_id}${field_separator}#{session_name}${field_separator}#{window_index}${field_separator}#{@claude_task}${field_separator}#{s/^[^ ]+ //:pane_title}" |
+  tmux list-panes -a -F "#{pane_current_command}${field_separator}#{@claude_state}${field_separator}#{@claude_state_since}${field_separator}#{pane_id}${field_separator}#{session_name}${field_separator}#{window_index}${field_separator}#{@claude_task}${field_separator}#{E:@claude_title_full}" |
     awk -F "$field_separator" -v OFS="$field_separator" '
       $1 != "claude" && $2 == "" { next }
       {

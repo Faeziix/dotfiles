@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+# prefix N: rename a Claude tab when the conversation has moved on to another topic.
+# Suggests a name from the latest prompts (Haiku, newest topic wins), then opens a tmux
+# prompt pre-filled with it: Enter keeps it, edit it, or clear it to go back to Claude's
+# own title. The name is the pane option @claude_title_override, which the tab, the
+# Alt+o dashboard and the Alt+a pill read through @claude_title_full (status.conf).
+# Usage: claude-rename-tab PANE_ID CLIENT_NAME
+set -uo pipefail
+
+pane_id=$1
+client_name=$2
+
+if [[ $(tmux display -p -t "$pane_id" '#{pane_current_command}') != claude ]]; then
+  tmux display-message -c "$client_name" "Not a Claude pane: prefix , renames a normal window"
+  exit 0
+fi
+
+one_line() { tr '\n' ' ' | sed 's/[[:space:]]\+/ /g; s/^ //; s/ $//'; }
+
+recent_prompts() {
+  local transcript
+  transcript=$(tmux show -pqv -t "$pane_id" @claude_transcript)
+  if [[ -n $transcript && -f $transcript ]]; then
+    jq -r 'select(.type == "user" and (.message.content | type) == "string")
+           | .message.content | select((startswith("<") or startswith("[Image")) | not)
+           | gsub("\\s+"; " ") | .[0:300]' "$transcript" 2>/dev/null | tail -6
+  else
+    tmux show -pqv -t "$pane_id" @claude_task
+  fi
+}
+
+current_name=$(tmux display -p -t "$pane_id" '#{E:@claude_title_full}')
+prompts=$(recent_prompts | awk 'NF' | nl -w1 -s'. ')
+
+suggestion=$current_name
+if [[ -n $prompts ]]; then
+  tmux display-message -c "$client_name" "Naming this Claude tab from the latest prompts…"
+  generated=$(cd /tmp && env -u TMUX_PANE timeout 25 claude -p --model haiku --no-session-persistence \
+    --strict-mcp-config --settings '{"disableAllHooks":true}' \
+    "Requests in a coding session, oldest first, newest last:
+$prompts
+
+Give a title for what the session is about NOW (the newest topic wins over earlier ones): 2 to 4 words, at most 20 characters, no quotes, no trailing punctuation. Reply with the title only." 2>/dev/null |
+    one_line | tr -d '"`' | sed 's/[.!]$//')
+  [[ -n $generated && ${#generated} -le 40 ]] && suggestion=$generated
+fi
+
+if (( ${#suggestion} > 20 )); then
+  suggestion=${suggestion:0:21}
+  [[ $suggestion == *" "* ]] && suggestion=${suggestion% *}
+  suggestion=${suggestion:0:20}
+fi
+
+tmux command-prompt -b -t "$client_name" -I "$suggestion" -p "Tab name (empty = Claude's title):" \
+  "set -p -t $pane_id @claude_title_override \"%%%\" ; refresh-client -S"

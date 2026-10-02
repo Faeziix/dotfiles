@@ -35,7 +35,7 @@ next_pane_after() {
 # cut at a word boundary to 20 characters; the project when Claude hasn't named it yet.
 pane_display_name() {
   local title session_name
-  title=$(tmux display -p -t "$1" '#{s/^[^ ]+ //:pane_title}')
+  title=$(tmux display -p -t "$1" '#{E:@claude_title_full}')
   if [[ -z $title || $title == "Claude Code" ]]; then
     session_name=$(tmux display -p -t "$1" '#{session_name}')
     echo "${session_name##*/}"
