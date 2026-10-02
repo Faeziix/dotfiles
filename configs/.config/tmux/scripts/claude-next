@@ -3,10 +3,10 @@
 # (permission prompt or question) come first, longest wait first; then finished ones.
 # Pressing again moves on to the next one and wraps around.
 # Usage: claude-next CURRENT_PANE_ID CLIENT_NAME
+#        claude-next --peek CURRENT_PANE_ID   prints the name of the pane Alt+a would
+#        jump to (Claude's task title as on the tab, else the project), for the status pill
 set -uo pipefail
 
-current_pane=$1
-client_name=$2
 script_dir=$(dirname "$(readlink -f "$0")")
 field_separator=$'\x1f'
 
@@ -18,18 +18,45 @@ panes_needing_attention() {
     sort -k1,1n -k2,2n | cut -d' ' -f3
 }
 
-mapfile -t queue < <(panes_needing_attention)
-if (( ${#queue[@]} == 0 )); then
-  tmux display-message -c "$client_name" "No Claude is waiting or finished"
+next_pane_after() {
+  local current_pane=$1 queue index
+  mapfile -t queue < <(panes_needing_attention)
+  (( ${#queue[@]} > 0 )) || return 1
+  for index in "${!queue[@]}"; do
+    if [[ ${queue[$index]} == "$current_pane" ]]; then
+      echo "${queue[$(( (index + 1) % ${#queue[@]} ))]}"
+      return 0
+    fi
+  done
+  echo "${queue[0]}"
+}
+
+# Same name as the tab and the Alt+o dashboard: the title without its status glyph,
+# cut at a word boundary to 20 characters; the project when Claude hasn't named it yet.
+pane_display_name() {
+  local title session_name
+  title=$(tmux display -p -t "$1" '#{s/^[^ ]+ //:pane_title}')
+  if [[ -z $title || $title == "Claude Code" ]]; then
+    session_name=$(tmux display -p -t "$1" '#{session_name}')
+    echo "${session_name##*/}"
+    return
+  fi
+  if (( ${#title} > 20 )); then
+    title=${title:0:21}
+    [[ $title == *" "* ]] && title=${title% *}
+  fi
+  echo "${title:0:20}"
+}
+
+if [[ ${1:-} == --peek ]]; then
+  target=$(next_pane_after "${2:-}") && pane_display_name "$target"
   exit 0
 fi
 
-target=${queue[0]}
-for index in "${!queue[@]}"; do
-  if [[ ${queue[$index]} == "$current_pane" ]]; then
-    target=${queue[$(( (index + 1) % ${#queue[@]} ))]}
-    break
-  fi
-done
-
+current_pane=$1
+client_name=$2
+if ! target=$(next_pane_after "$current_pane"); then
+  tmux display-message -c "$client_name" "No Claude is waiting or finished"
+  exit 0
+fi
 "$script_dir/claude-focus-pane" "$target" "$client_name"
