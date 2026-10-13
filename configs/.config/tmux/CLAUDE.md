@@ -19,6 +19,7 @@
 - Desktop notifications: `~/.claude/hooks/claude-notify.sh done|waiting` (Stop, and Notification with matcher `permission_prompt|elicitation_dialog`; replaced `notify-stop.sh` 2026-10-02). Title names the project and, for done, how long the prompt took; waiting is urgency critical with Claude's message. Skipped when the pane is active in an attached session whose kitty window is focused in niri. One notification per pane (`@claude_notification_id`; the previous one is closed first, `gdbus … CloseNotification`); closed when the pane goes back to working, ends, or its window is visited. The `default` action (click) runs `claude-focus-pane --raise-terminal`; the script re-runs itself detached (`setsid -f … --deliver`) so the hook returns at once while `notify-send --wait` waits for the click. Daemon is quickshell (DMS), which supports actions.
 - Alt+s = `scripts/session-picker` (fzf in a rounded popup): most recent first, current last as "(here)", Claude marker, window icons, live preview; one icon per distinct pane program with a count when >1 (never three copies); Claude panes use the Claude icon itself as the state marker, coloured red waiting / yellow working / green done / dim idle, each with its own count, Enter switch, ctrl-x kill (y/N), unknown name + Enter creates. The binding stores `#{session_id}` in `@picker_origin_session` first.
 - Colours: always `#{@thm_*}` tokens from catppuccin, never hex, in status formats.
+- `Alt+Shift+w` = new window in the current folder with `claude --dangerously-skip-permissions` typed into it (send-keys, so the interactive shell PATH applies and the shell stays when Claude exits). Pairs with `Alt+w` (plain new window). Prefix C stays tmux's customize-mode.
 - `status-right` must keep `#(…/tmux-continuum/scripts/continuum_save.sh)` or continuum autosave stops.
 - Prefix is `Alt+Space` (`M-Space`).
 - Two-layer keymap direction: `Alt+key` (root table, no prefix) for frequent actions; prefix + mnemonic key for the rest.
@@ -90,7 +91,7 @@
 - **kitty** (eats before tmux): h j k l u d c v - =, Shift+s, Shift+a
 - **nvim**: t, i (terminal toggles). Harpoon removed 2026-09-29, so 1–9 and Shift+h are free (a is now tmux's Alt+a).
 - **niri**: ` and Shift+` (same-app window switch)
-- **tmux**: Tab, 1–9, Shift+h/j/k/l, z n p w b x s g y f a o (Alt+Enter removed at user request; split right is prefix %)
+- **tmux**: Tab, 1–9, Shift+h/j/k/l, Shift+w, z n p w b x s g y f a o (Alt+Enter removed at user request; split right is prefix %)
 - **Avoid**: `[` (escape-sequence prefix)
 
 ## Current State
