@@ -18,7 +18,7 @@ popup_width=$(tput cols 2>/dev/null || echo 120)
 longest_path_width=$(( popup_width * list_width_percent / 100 - icon_room ))
 
 FZF_STYLE+=(
-  --scheme=path --tiebreak=begin,length
+  --scheme=path --tiebreak=pathname,length
   --header='enter open · ^o claude · tab mark · ^x kill · ^t open only'
   --marker='󰄬' --color="marker:$(theme_hex mauve)"
   --preview="'$script_dir/project-preview' {1}"

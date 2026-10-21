@@ -82,7 +82,9 @@
 
 - ❌ fzf `reload` with the list piped in by `tail -f` on stdin → reload never runs (fzf waits for stdin to end). ✅ Stream the growing list through `--bind 'start:reload(tail -f …)'` with stdin closed, so fzf can stop it.
 
-- ❌ `--no-sort` in the shared `fzf-style.sh` → Alt+f kept list order while filtering, so typing `stt` didn't put stt first. ✅ `--no-sort` only in session-picker (MRU order matters there); project-picker uses `--scheme=path --tiebreak=begin,length`.
+- ❌ `--no-sort` in the shared `fzf-style.sh` → Alt+f kept list order while filtering, so typing `stt` didn't put stt first. ✅ `--no-sort` only in session-picker (MRU order matters there); project-picker uses `--scheme=path --tiebreak=pathname,length`.
+
+- ❌ `--tiebreak=begin` in the Alt+f picker → rows whose path is cut from the left (`…ts/XMA Projects/clients/…`) and the `●` prefix shift where the match starts, so typing `clients` ranked `clients/lumi` and cut subfolders above the `clients` folders themselves. ✅ `--tiebreak=pathname,length` (matches in the folder's own name win). Test ranking with `TMUX_LEAP_ANNOTATE=… TMUX_LEAP_PATH_WIDTH=62 tmux-leap picker-lines | fzf --ansi --delimiter='\t' --with-nth=2.. --filter=QUERY`.
 
 ## Dependencies & Tooling
 - Plugins: tpm, tmux-sensible, catppuccin/tmux v2.3.1 (official, pinned tag; replaced dreamsofcode-io/catppuccin-tmux 2026-09-29), tmux-continuum, tmux-yank (wl-copy), vim-tmux-navigator, tmux-thumbs (`prefix F`), extrakto (`prefix Tab`).
