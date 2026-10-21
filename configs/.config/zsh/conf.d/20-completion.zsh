@@ -34,6 +34,7 @@ if command -v carapace >/dev/null; then
         ls lsd eza cat bat tac nl head tail less more wc
         cp mv rm rmdir mkdir touch ln chmod chown chgrp stat file du
         nvim vim vi view gvim nano micro code subl
+        zathura mupdf evince okular mpv vlc feh imv sxiv nsxiv xdg-open
         tar zip unzip gzip gunzip xz zstd source realpath readlink
     )
     compdef -d $carapace_native_file_cmds 2>/dev/null

@@ -145,6 +145,8 @@ alias centerify="sh ~/.scripts/magick/centerify.sh"
 
 alias oc="opencode"
 
+alias x="xdg-open"
+
 # +------+
 # | yarn |
 # +------+
