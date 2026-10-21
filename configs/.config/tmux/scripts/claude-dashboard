@@ -3,7 +3,7 @@
 # Row: state icon (red waiting, yellow working, green done, dim idle), state and how
 # long, project and window number, Claude's task title, then the last prompt.
 # Preview = the pane's screen.
-# Enter jumps to the pane, ctrl-r refreshes, Alt+o again closes it (toggle).
+# Enter jumps to the pane, ctrl-x kills it (y/N), ctrl-r refreshes, Alt+o again closes it (toggle).
 set -uo pipefail
 
 script_path=$(readlink -f "$0")
@@ -70,6 +70,21 @@ preview_pane() {
   tmux capture-pane -ep -t "$1" 2>/dev/null | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}' | tail -n "${FZF_PREVIEW_LINES:-40}"
 }
 
+kill_claude_pane() {
+  local pane_id=$1 pane_details session_name window_index title notification_id answer
+  pane_details=$(tmux display -p -t "$pane_id" "#{session_name}${field_separator}#{window_index}${field_separator}#{E:@claude_title_full}${field_separator}#{@claude_notification_id}" 2>/dev/null) || return 0
+  IFS=$field_separator read -r session_name window_index title notification_id <<< "$pane_details"
+  [[ $title == "Claude Code" ]] && title=""
+  printf '\n  Kill Claude in %s #%s%s? [y/N] ' "${session_name##*/}" "$window_index" "${title:+ ($title)}"
+  read -rsn1 answer
+  [[ $answer == y || $answer == Y ]] || return 0
+  if [[ -n $notification_id ]]; then
+    gdbus call --session --dest org.freedesktop.Notifications --object-path /org/freedesktop/Notifications \
+      --method org.freedesktop.Notifications.CloseNotification "$notification_id" >/dev/null 2>&1
+  fi
+  tmux kill-pane -t "$pane_id"
+}
+
 open_dashboard() {
   local origin_client
   origin_client=$(tmux show -gv @picker_origin_client 2>/dev/null)
@@ -83,9 +98,10 @@ open_dashboard() {
   local choice
   choice=$(printf '%s\n' "$rows" | FZF_DEFAULT_OPTS="" fzf "${FZF_STYLE[@]}" \
     --ansi --delimiter=$'\t' --with-nth=2.. --no-sort \
-    --header='enter jump · ctrl-r refresh · alt-o close' \
+    --header='enter jump · ctrl-x kill · ctrl-r refresh · alt-o close' \
     --preview="'$script_path' --preview {1}" \
     --preview-window='down,60%,border-top' \
+    --bind="ctrl-x:execute('$script_path' --kill {1})+reload('$script_path' --list)" \
     --bind="ctrl-r:reload('$script_path' --list)" \
     --bind='alt-o:abort') || return 0
 
@@ -96,5 +112,6 @@ open_dashboard() {
 case ${1:-} in
   --list) list_claude_panes ;;
   --preview) preview_pane "${2:-}" ;;
+  --kill) kill_claude_pane "${2:-}" ;;
   *) open_dashboard ;;
 esac
