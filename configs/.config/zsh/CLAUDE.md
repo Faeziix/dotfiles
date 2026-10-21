@@ -62,7 +62,7 @@ zsh -is <<< 'bindkey -M viins "^R"; bindkey "^I"'
 1. **Secrets** live in `.secrets` (gitignored) and are sourced from `~/.zshenv` so they
    reach non-interactive shells too. Never inline keys into a tracked file.
 2. **`zsh-vi-mode` resets the keymaps on init**, so every key-binding tool (fzf, atuin,
-   pay-respects, and the fzf-tab Tab reclaim) is deferred via `zvm_after_init_commands`
+   pay-respects, the fzf-tab Tab reclaim, and the `^e` edit-command-line bind) is deferred via `zvm_after_init_commands`
    in `50-plugins.zsh`. Binding keys outside that hook will silently not stick.
 3. **fzf-tab vs fzf completion**: fzf's `completion.zsh` rebinds `Tab` to `fzf-completion`,
    which would clobber fzf-tab. `50-plugins.zsh` calls `enable-fzf-tab` right after loading

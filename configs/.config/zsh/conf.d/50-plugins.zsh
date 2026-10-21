@@ -16,6 +16,12 @@ if [[ -f /usr/share/zsh/plugins/zsh-vi-mode/zsh-vi-mode.plugin.zsh ]]; then
         zvm_after_init_commands+=('bindkey -M vicmd "^R" atuin-search-vicmd; bindkey -M viins "^R" atuin-search-viins')
     fi
     command -v pay-respects >/dev/null && zvm_after_init_commands+=('eval "$(pay-respects zsh --nocnf --alias f)"')
+    # Alt-. / Alt-_ insert the previous command's last argument (viins only, so
+    # normal-mode `.` stays vi-repeat-change). ^X. is the timeout-proof fallback.
+    zvm_after_init_commands+=('bindkey -M viins "^[." insert-last-word; bindkey -M viins "^[_" insert-last-word; bindkey -M viins "^X." insert-last-word')
+    # Ctrl-e opens the command line in $EDITOR from both insert and normal mode
+    # (30-keybindings.zsh binds it too, but zvm's keymap reset wipes that copy)
+    zvm_after_init_commands+=('bindkey -M viins "^E" edit-command-line; bindkey -M vicmd "^E" edit-command-line')
 else
     [ -f "$ZDOTDIR/lib/fzf.zsh" ] && source "$ZDOTDIR/lib/fzf.zsh"
     (( $+functions[enable-fzf-tab] )) && enable-fzf-tab
@@ -25,6 +31,10 @@ else
         bindkey -M viins "^R" atuin-search-viins
     fi
     command -v pay-respects >/dev/null && eval "$(pay-respects zsh --nocnf --alias f)"
+    bindkey -M viins "^[." insert-last-word
+    bindkey -M viins "^[_" insert-last-word
+    bindkey -M viins "^X." insert-last-word
+    bindkey -M vicmd "^E" edit-command-line
 fi
 
 # Autosuggestions
