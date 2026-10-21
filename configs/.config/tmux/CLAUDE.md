@@ -31,6 +31,7 @@
 - Alt+Tab means "go back to the previous session", not cycle through sessions. No Alt+Shift+Tab binding.
 - Status bar keeps its background (`@catppuccin_status_background "#{@thm_bg}"`); user tried transparent and asked for the bg back. Popups (tmux-leap etc.) ARE transparent (`popup-style default`).
 - Window tabs are left-aligned (`status-justify left`). User hates centred tabs.
+- Active tab must be obvious at a glance (2026-10-19: user couldn't tell which tab was active). Inactive tabs are dimmed: `surface_1` number pill with `overlay_1` digit, `surface_0` text pill with `overlay_1` text. Active: mauve number pill, `surface_1` text pill, bold `thm_fg` text (theme.conf). The text colour is `@tab_text_colour` (status.conf, `#{?window_active,…}`), and `@claude_marker` / the zoom icon restore it after their coloured icons instead of `thm_fg` / `default`.
 - Tab separators and badges put `bg=#{@thm_bg}` behind round glyphs (not `default`), so corners match the bar.
 - Killing a session switches to the most recently used session instead of detaching (`detach-on-destroy off`).
 - Before adding any `bind -n M-<key>`, check the Alt-key owners below.
