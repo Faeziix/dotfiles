@@ -3,6 +3,7 @@
 #   record <session_id>  push a session to the front (client-session-changed hook)
 #   refresh              drop dead sessions and recompute the target (session-closed hook)
 #   previous             switch to the newest surviving session that is not the current one
+#                        (sessions never focused fall back to session activity order)
 set -uo pipefail
 
 history_option=@session_history
@@ -17,6 +18,11 @@ first_other_session_id() {
   for history_id in $(read_history); do
     [[ $history_id != "$current_id" ]] && printf '%s' "$history_id" && return
   done
+}
+
+most_recently_active_other_session_id() {
+  tmux list-sessions -F '#{session_activity} #{session_id}' |
+    sort -rn | awk -v current="$1" '$2 != current { print $2; exit }'
 }
 
 publish_target_name() {
@@ -48,6 +54,11 @@ case ${1:-} in
     current_id=$(tmux display -p '#{session_id}')
     write_history $(read_history)
     target_id=$(first_other_session_id "$current_id")
-    if [[ -n $target_id ]]; then tmux switch-client -t "$target_id"; else tmux switch-client -l; fi
+    [[ -z $target_id ]] && target_id=$(most_recently_active_other_session_id "$current_id")
+    if [[ -n $target_id ]]; then
+      tmux switch-client -t "$target_id"
+    else
+      tmux display-message "No other session"
+    fi
     ;;
 esac
