@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Names a Claude tab automatically: stores claude-suggest-title's name in the pane option
-# @claude_title_auto, which @claude_title_full (status.conf) prefers over Claude Code's own
-# title. Run detached by ~/.claude/hooks/tmux-claude-state.sh on the 1st, 3rd, 6th, 9th…
-# prompt. Skipped while a hand-picked name (prefix N, @claude_title_override) is set.
+# Names a Claude tab once: stores claude-suggest-title's name in the pane option @claude_title_auto
+# and never replaces it, so the tab keeps that name for the whole Claude session. Run detached by
+# ~/.claude/hooks/tmux-claude-state.sh on every prompt until the pane has a name. Skipped while a
+# hand-picked name (prefix N, @claude_title_override) is set.
 # Usage: claude-auto-title PANE_ID
 set -uo pipefail
 
@@ -13,6 +13,7 @@ exec 9>"${XDG_RUNTIME_DIR:-/tmp}/claude-auto-title-${pane_id#%}.lock"
 flock -n 9 || exit 0
 
 [[ -z $(tmux show -pqv -t "$pane_id" @claude_title_override) ]] || exit 0
+[[ -z $(tmux show -pqv -t "$pane_id" @claude_title_auto) ]] || exit 0
 
 name=$("$scripts_dir/claude-suggest-title" "$pane_id")
 [[ -n $name ]] || exit 0

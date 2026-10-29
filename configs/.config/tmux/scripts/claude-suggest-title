@@ -3,7 +3,7 @@
 # nothing to name it from. Haiku reads the project folder, the latest prompts (slash
 # command arguments included, pasted text and image tags stripped), the start of Claude's
 # last reply and the current name, which it keeps unless the topic changed.
-# Used by claude-auto-title (automatic names) and claude-rename-tab (prefix N).
+# Used by claude-auto-title (the one automatic name) and claude-rename-tab (prefix N).
 # Usage: claude-suggest-title PANE_ID
 set -uo pipefail
 

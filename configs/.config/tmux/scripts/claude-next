@@ -32,7 +32,7 @@ next_pane_after() {
 }
 
 # Same name as the tab and the Alt+o dashboard: the title without its status glyph,
-# cut at a word boundary to 20 characters; the project when Claude hasn't named it yet.
+# cut at a word boundary to 20 characters; the project when it has no name yet.
 pane_display_name() {
   local title session_name
   title=$(tmux display -p -t "$1" '#{E:@claude_title_full}')
